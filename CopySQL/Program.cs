@@ -80,11 +80,19 @@ namespace CopySQL
 
                             var primaryKeyOrderClause = string.Join(",", primaryKeys);
 
+                            // Get already exist count
+                            table.SkipCount = mySqlConnection.ExecuteLongScalarQuery($"SELECT COUNT(*) FROM {table.Name}");
+                            if (table.SkipCount > 0)
+                            {
+                                Console.WriteLine($"Target already has {table.SkipCount}...");
+                                table.RowCount -= table.SkipCount;
+                            }
+
                             // Copy
                             table.CopiedRowCount = 0;
                             do
                             {
-                                using (var selectCommand = new SqlCommand($"SELECT * FROM {table.Name} ORDER BY {primaryKeyOrderClause} OFFSET {table.CopiedRowCount} ROWS FETCH NEXT {insertionBatch} ROWS ONLY;", mssqlConnection))
+                                using (var selectCommand = new SqlCommand($"SELECT * FROM {table.Name} ORDER BY {primaryKeyOrderClause} OFFSET {table.SkipCount + table.CopiedRowCount} ROWS FETCH NEXT {insertionBatch} ROWS ONLY;", mssqlConnection))
                                 {
                                     Console.WriteLine();
                                     Console.WriteLine($"Getting {insertionBatch} rows from SQL Server");
@@ -265,6 +273,7 @@ namespace CopySQL
         public string Name { get; set; }
         public long RowCount { get; set; }
         public long CopiedRowCount { get; set; }
+        public long SkipCount { get; set; }
 
         public override string ToString()
         {
